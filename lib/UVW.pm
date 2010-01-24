@@ -26,10 +26,15 @@ has template_extension => (default => '.tt2');
 
 has tt2 => (lazy_build => 1);
 
-has req => (is      => 'rw',
-            isa     => 'Plack::Request',
-            handles => [qw/param/],
-           );
+has req     => (is      => 'rw',
+                isa     => 'Plack::Request',
+                handles => [qw/param/],
+               );
+
+has match   => (is      => 'rw',
+                isa     => 'Path::Router::Route::Match',
+                handles => [qw/mapping/],
+               );
 
 has session => (is      => 'rw',
                 isa     => 'UVW::Session',
@@ -80,13 +85,35 @@ sub BUILD {
             $name =~ s|::|-|g;
             $name = lc $name;
 
-            $self->action->{$controller->name .'/'. $name} = $action;
+            my $path = $controller->name .'/'. $name;
 
-            $router->add_route($name,
-                               defaults => {controller => $controller->name,
-                                            action     => $name,
-                                           },
-                              );
+            $self->action->{$path} = $action;
+
+            my $route_list = $action->meta->route_list;
+            if (@$route_list) {
+                while (@$route_list) {
+                    my $route = shift @$route_list;
+                    my $args  = shift @$route_list;
+
+                    # add controller and action
+                    $args->{defaults}->{controller} = $controller->name;
+                    $args->{defaults}->{action}     = $name;
+
+                    # add template
+                    $args->{defaults}->{template} ||= $path;
+
+                    $router->add_route($name.'/'.$route, %$args);
+                }
+            }
+            else {
+                # add default route (action name)
+                $router->add_route($name,
+                                   defaults => {controller => $controller->name,
+                                                action     => $name,
+                                                template   => $path,
+                                               },
+                                  );
+            }
         }
 
         my $route_list = $controller->meta->route_list;
@@ -111,7 +138,7 @@ sub BUILD {
 
         my $prefix = $controller->prefix;
         $self->router->include_router("$prefix/" => $router);
-        $redirect->{$prefix} = $prefix . '/' . $controller->default_index;
+        $redirect->{$prefix} = $prefix . '/' . $controller->default_action;
     }
 
     warn dump $self->router;
@@ -151,13 +178,16 @@ sub psgi_handler {
         return $req->new_response(404)->finalize;
     }
 
+    $self->match($match);
+
     my @result     = ();
     my $mapping    = $match->mapping;
     my $controller = $self->controller->{$mapping->{controller}};
     my $template;
     my $template_name = $mapping->{template};
+
     if ($match->route->has_target) {
-        @result = $match->target->($self, $mapping);
+        @result = $match->target->($self);
 
         my $section_data = $controller->merged_section_data;
         if ($section_data and $mapping->{template}) {
@@ -173,7 +203,7 @@ sub psgi_handler {
         return $req->new_response(409)->finalize
             unless $action->can($method);
 
-        @result = $action->$method($self, $mapping);
+        @result = $action->$method($self);
 
         $template_name = $name;
 
@@ -218,6 +248,18 @@ sub psgi_handler {
     $res->content_type('text/html');
     $res->body($body);
     return $res->finalize;
+}
+
+sub uri_for {
+    my ($self, %data) = @_;
+
+    # add controller and action
+    unless ($data{controller}) {
+        $data{controller} = $self->mapping->{controller};
+        $data{action}   ||= $self->mapping->{action};
+    }
+
+    return $self->router->uri_for(%data);
 }
 
 sub redirect {

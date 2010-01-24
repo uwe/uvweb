@@ -1,6 +1,6 @@
 package UVW::Action;
 
-use Moose;
+use UVW::Moose;
 
 use Data::Section -setup => {default_name => '_'};
 
