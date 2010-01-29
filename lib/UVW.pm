@@ -137,8 +137,12 @@ sub BUILD {
         }
 
         my $prefix = $controller->prefix;
-        $self->router->include_router("$prefix/" => $router);
-        $redirect->{$prefix} = $prefix . '/' . $controller->default_action;
+        if ($prefix) {
+            $self->router->include_router("$prefix/" => $router);
+            $redirect->{$prefix} = $prefix . '/' . $controller->default_action;
+        } else {
+            $self->router->include_router('', $router);
+        }
     }
 
     warn dump $self->router;
@@ -177,6 +181,8 @@ sub psgi_handler {
 
         return $req->new_response(404)->finalize;
     }
+
+    warn dump $match;
 
     $self->match($match);
 
@@ -251,15 +257,29 @@ sub psgi_handler {
 }
 
 sub uri_for {
-    my ($self, %data) = @_;
+    my ($self, $data) = @_;
 
-    # add controller and action
-    unless ($data{controller}) {
-        $data{controller} = $self->mapping->{controller};
-        $data{action}   ||= $self->mapping->{action};
+    warn $data;
+
+    unless (ref $data) {
+        my ($controller, $action) = split /\//, $data;
+
+        $data = {controller => $controller,
+                 action     => $action,
+                };
     }
 
-    return $self->router->uri_for(%data);
+    # add controller and action
+    unless ($data->{controller}) {
+        $data->{controller} = $self->mapping->{controller};
+        $data->{action}   ||= $self->mapping->{action};
+    }
+
+    my $path = $self->router->uri_for(%$data);
+
+    warn dump $path;
+
+    return $path;
 }
 
 sub redirect {
