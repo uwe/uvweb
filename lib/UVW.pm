@@ -257,16 +257,23 @@ sub psgi_handler {
 }
 
 sub uri_for {
-    my ($self, $data) = @_;
+    my ($self, $data, @extra) = @_;
 
-    warn $data;
+    die "EXTRA arguments to uri_for()" if @extra;
 
     unless (ref $data) {
-        my ($controller, $action) = split /\//, $data;
+        if ($data !~ m|/|) {
+            # local action
+            $data = {controller => $self->mapping->{controller},
+                     action     => $data,
+                    };
+        } else {
+            my ($controller, $action) = split /\//, $data;
 
-        $data = {controller => $controller,
-                 action     => $action,
-                };
+            $data = {controller => $controller,
+                     action     => $action,
+                    };
+        }
     }
 
     # add controller and action
@@ -275,11 +282,9 @@ sub uri_for {
         $data->{action}   ||= $self->mapping->{action};
     }
 
-    my $path = $self->router->uri_for(%$data);
+    my $path = $self->router->uri_for(%$data) or return;
 
-    warn dump $path;
-
-    return $path;
+    return "/$path";
 }
 
 sub redirect {
