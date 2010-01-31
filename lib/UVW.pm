@@ -3,15 +3,12 @@ package UVW;
 use Moose;
 use MooseX::HasDefaults::RO;
 
-use Data::Dump qw(dump);
 use Data::Section qw(-setup);
 use File::Spec;
-use FindBin;
 use Module::Find qw(useall usesub);
 use Path::Router;
 use Plack::Request;
 use Template;
-use URI;
 
 use UVW::Session;
 
@@ -144,11 +141,6 @@ sub BUILD {
             $self->router->include_router('', $router);
         }
     }
-
-    warn dump $self->router;
-    warn dump $self->controller;
-    warn dump $self->action;
-    warn dump $self->redirect_list;
 }
 
 sub psgi {
@@ -181,8 +173,6 @@ sub psgi_handler {
 
         return $req->new_response(404)->finalize;
     }
-
-    warn dump $match;
 
     $self->match($match);
 
