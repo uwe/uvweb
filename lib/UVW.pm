@@ -220,6 +220,17 @@ sub psgi_handler {
         return $self->redirect(@result);
     }
 
+    # file download?
+    if (ref($result[0]) eq 'ARRAY') {
+        my ($ctype, $body, $file) = @{shift @result};
+        my $res = $req->new_response(200);
+        $res->content_type($ctype);
+        $res->header('Content-disposition', 'attachment; filename='.$file)
+            if $file;
+        $res->body($body);
+        return $res->finalize;
+    }
+
     # file system template overrides all
     if ($template_name) {
         my $file = File::Spec->catfile($controller->template_path,
