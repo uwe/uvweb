@@ -278,7 +278,14 @@ sub uri_for {
     }
 
     # add controller and action
-    unless ($data->{controller}) {
+    if ($data->{controller}) {
+        unless ($data->{action}) {
+            # add default action
+            my $controller = $self->controller->{$data->{controller}};
+            $data->{action} = $controller->default_action;
+        }
+    } else {
+        # controller missing
         $data->{controller} = $self->mapping->{controller};
         $data->{action}   ||= $self->mapping->{action};
     }
