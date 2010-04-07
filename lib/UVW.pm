@@ -9,6 +9,7 @@ use Module::Find qw(useall usesub);
 use Path::Router;
 use Plack::Request;
 use Template;
+use URI;
 
 use UVW::Session;
 
@@ -258,9 +259,7 @@ sub psgi_handler {
 }
 
 sub uri_for {
-    my ($self, $data, @extra) = @_;
-
-    die "EXTRA arguments to uri_for()" if @extra;
+    my ($self, $data, $param) = @_;
 
     unless (ref $data) {
         if ($data !~ m|/|) {
@@ -292,7 +291,12 @@ sub uri_for {
 
     my $path = $self->router->uri_for(%$data) or return;
 
-    return "/$path";
+    return "/$path" unless $param;
+
+    my $uri = URI->new("/$path");
+    $uri->query_form($param);
+
+    return $uri->as_string;
 }
 
 sub redirect {
