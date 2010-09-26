@@ -1,7 +1,6 @@
 package UVW;
 
 use Moose;
-use MooseX::HasDefaults::RO;
 
 use Data::Section qw(-setup);
 use File::Spec;
@@ -14,31 +13,19 @@ use URI;
 use UVW::Session;
 
 
-has router => (default => sub { Path::Router->new });
+has router => (is => 'ro', default => sub { Path::Router->new });
 
-has [qw/controller action redirect_list/] => (default => sub { {} });
+has [qw/controller action redirect_list/] => (is => 'ro', default => sub { {} });
 
-has default_index      => (default => '/index');
-has template_path      => (default => 'template');
-has template_extension => (default => '.tt2');
+has default_index      => (is => 'ro', default => '/index');
+has template_path      => (is => 'ro', default => 'template');
+has template_extension => (is => 'ro', default => '.tt2');
 
-has tt2 => (lazy_build => 1);
+has tt2 => (is => 'ro', lazy_build => 1);
 
-has req     => (is      => 'rw',
-                isa     => 'Plack::Request',
-                handles => [qw/param/],
-               );
-
-has match   => (is      => 'rw',
-                isa     => 'Path::Router::Route::Match',
-                handles => [qw/mapping/],
-               );
-
-has session => (is      => 'rw',
-                isa     => 'UVW::Session',
-                lazy    => 1,
-                default => sub { UVW::Session->new },
-               );
+has req     => (is => 'rw', isa => 'Plack::Request',             handles => [qw/param/]);
+has match   => (is => 'rw', isa => 'Path::Router::Route::Match', handles => [qw/mapping/]);
+has session => (is => 'rw', isa => 'UVW::Session', lazy => 1, default => sub { UVW::Session->new });
 
 sub _build_tt2 {
     my ($self) = @_;
